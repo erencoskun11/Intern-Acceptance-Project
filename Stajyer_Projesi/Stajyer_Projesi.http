@@ -1,0 +1,6 @@
+@Stajyer_Projesi_HostAddress = http://localhost:5154
+
+GET {{Stajyer_Projesi_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###
