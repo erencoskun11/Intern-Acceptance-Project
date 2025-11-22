@@ -30,9 +30,9 @@ namespace Infrastructure.Configurations
             builder.HasCheckConstraint("CK_InternshipApplications_TaskSuccessRange", "\"TaskSuccessPercent\" >= 0 AND \"TaskSuccessPercent\" <= 100");
 
             // Relations
-            builder.HasOne(x => x.Student)
+            builder.HasOne(x => x.Intern)
                    .WithMany(s => s.Applications)
-                   .HasForeignKey(x => x.StudentId)
+                   .HasForeignKey(x => x.InternId)
                    .OnDelete(DeleteBehavior.Cascade);
 
             builder.HasOne(x => x.Department)
@@ -40,15 +40,15 @@ namespace Infrastructure.Configurations
                    .HasForeignKey(x => x.DepartmentId)
                    .OnDelete(DeleteBehavior.Restrict);
 
-            builder.HasOne(x => x.Mentor)
+            builder.HasOne(x => x.Employee)
                    .WithMany(m => m.AssignedApplications)
-                   .HasForeignKey(x => x.MentorId)
+                   .HasForeignKey(x => x.EmployeeId)
                    .OnDelete(DeleteBehavior.SetNull);
 
             // Add an index to frequently queried columns
-            builder.HasIndex(x => x.StudentId);
+            builder.HasIndex(x => x.InternId);
             builder.HasIndex(x => x.DepartmentId);
-            builder.HasIndex(x => new { x.StudentId, x.Role });
+            builder.HasIndex(x => new { x.InternId, x.Role });
 
             // Shadow property for concurrency / rowversion (opsiyonel)
             builder.Property<byte[]>("RowVersion").IsRowVersion();
