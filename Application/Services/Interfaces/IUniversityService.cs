@@ -1,4 +1,5 @@
-﻿using Application.DTOs.University;
+﻿using Application.Common;
+using Application.DTOs.University;
 
 namespace Application.Services.Interfaces
 {
@@ -6,7 +7,7 @@ namespace Application.Services.Interfaces
     public interface IUniversityService : IGenericService<UniversityListDto, UniversityCreateDto, UniversityUpdateDto>
     {
       
-        Task BulkCreateAsync(IEnumerable<UniversityCreateDto> dtos);
+        Task <Response<NoContent>>BulkCreateAsync(IEnumerable<UniversityCreateDto> dtos);
 
     }
 }
