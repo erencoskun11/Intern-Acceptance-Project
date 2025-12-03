@@ -1,4 +1,5 @@
-﻿using Application.DTOs.Intern;
+﻿using Application.Common;
+using Application.DTOs.Intern;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -9,6 +10,6 @@ namespace Application.Services.Interfaces
 {
     public interface IInternService : IGenericService<InternListDto,InternCreateDto,InternUpdateDto>    
     {
-        Task<IEnumerable<InternListDto>> GetAllWithDetailsAsync();
+        Task<Response<IEnumerable<InternListDto>>> GetAllWithDetailsAsync();
     }
 }
