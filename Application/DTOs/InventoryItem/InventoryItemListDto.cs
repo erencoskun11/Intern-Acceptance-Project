@@ -1,4 +1,5 @@
-﻿// InventoryItemListDto.cs
+﻿using System; // DateTime için gerekli
+
 namespace Application.DTOs.InventoryItem
 {
     public class InventoryItemListDto
@@ -10,6 +11,12 @@ namespace Application.DTOs.InventoryItem
         public string? Model { get; set; }
         public string? SerialNumber { get; set; }
         public string Status { get; set; } = null!;
-        public string? Location { get; set; }
+        public string? Notes { get; set; }
+
+        // public string? Location { get; set; } // Entity'de yoksa kaldır
+
+        // --- EKSİKLER EKLENDİ ---
+        public DateTime? PurchaseDate { get; set; }
+        public DateTime? WarrantyEndDate { get; set; }
     }
 }
