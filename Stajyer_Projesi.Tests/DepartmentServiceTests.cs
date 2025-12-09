@@ -57,6 +57,29 @@ namespace Stajyer_Projesi.Tests
             _deptRepoMock.Verify(x => x.GetAll(), Times.Never);
         }
 
-       
+        [Fact]
+        public async Task GetAllAsync_Should_Fetch_From_Db_And_Set_Cache_When_Cache_Is_Empty()
+        {
+            IEnumerable<DepartmentListDto> outList = null;
+            _cacheMock.Setup(x => x.TryGet(CacheKeys.DepartmentList, out outList))
+                      .Returns(false);
+
+            var dbList = new List<Department> { new Department { Id = 1, Name = "HR" } };
+            var mockQuery = dbList.AsQueryable().BuildMock();
+
+            _deptRepoMock.Setup(x => x.GetAll()).Returns(mockQuery);
+
+            _mapperMock.Setup(m => m.Map<IEnumerable<DepartmentListDto>>(It.IsAny<List<Department>>()))
+                       .Returns(new List<DepartmentListDto> { new DepartmentListDto { Name = "HR" } });
+
+            var result = await _service.GetAllAsync();
+
+            result.IsSuccessful.Should().BeTrue();
+            result.Data.First().Name.Should().Be("HR");
+
+            _deptRepoMock.Verify(x => x.GetAll(), Times.Once);
+        }
+
+      
     }
 }
