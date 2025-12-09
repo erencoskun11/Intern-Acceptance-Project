@@ -80,6 +80,19 @@ namespace Stajyer_Projesi.Tests
             _deptRepoMock.Verify(x => x.GetAll(), Times.Once);
         }
 
-      
+        [Fact]
+        public async Task CreateAsync_Should_Clear_Cache_After_Success()
+        {
+            var dto = new DepartmentCreateDto { Name = "New Dept" };
+            var entity = new Department { Id = 10, Name = "New Dept" };
+
+            _mapperMock.Setup(m => m.Map<Department>(dto)).Returns(entity);
+
+            var result = await _service.CreateAsync(dto);
+
+            result.IsSuccessful.Should().BeTrue();
+
+            _cacheMock.Verify(x => x.Remove(CacheKeys.DepartmentList), Times.Once);
+        }
     }
 }
