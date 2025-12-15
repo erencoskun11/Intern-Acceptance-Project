@@ -5,6 +5,6 @@ namespace Application.Interfaces
 {
     public interface IInventoryItemRepository : IGenericRepository<InventoryItem>
     {
-        Task<IEnumerable<InventoryItem>> GetAvailableItemsAsync();
+        IQueryable<InventoryItem> GetAvailableItems();
     }
 }
