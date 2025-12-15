@@ -1,11 +1,10 @@
 ﻿using Domain.Entities;
-using System.Linq; // IQueryable için
+using System.Linq; 
 
 namespace Application.Interfaces
 {
     public interface IAssignmentRepository : IGenericRepository<Assignment>
     {
-        // IQueryable olduğu için "Async" eklerini kaldırdık
         IQueryable<Assignment> GetByEmployeeId(int employeeId);
 
         IQueryable<Assignment> GetByInternId(int internId);
