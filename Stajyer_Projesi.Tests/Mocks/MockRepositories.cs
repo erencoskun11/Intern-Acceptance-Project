@@ -18,7 +18,16 @@ namespace Stajyer_Projesi.Tests.Mocks
 
             return mockRepo;
         }
+        public static Mock<IUnitOfWork> GetUnitOfWork()
+        {
+            var mockUow = new Mock<IUnitOfWork>();
 
-       
+            // HATA 2 ÇÖZÜMÜ: Task.CompletedTask yerine ReturnsAsync(1) kullandık.
+            // Çünkü CommitAsync metodu geriye int (Task<int>) dönüyor.
+            mockUow.Setup(u => u.CommitAsync()).ReturnsAsync(1);
+
+            return mockUow;
+        }
+
     }
 }
