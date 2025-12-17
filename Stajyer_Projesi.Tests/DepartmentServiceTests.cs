@@ -6,6 +6,7 @@ using Application.Services.Interfaces;
 using AutoMapper;
 using Domain.Entities;
 using FluentAssertions;
+using MockQueryable;
 using MockQueryable.Moq; 
 using Moq;
 
