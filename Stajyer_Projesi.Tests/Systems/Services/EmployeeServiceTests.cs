@@ -178,8 +178,53 @@ namespace Stajyer_Projesi.Tests.Systems.Services
             result.Data.Id.Should().Be(testId);
             result.IsSuccessful.Should().BeTrue();
         }
+        [Fact]
+        public async Task GetByIdAsync_ShouldReturnNull_WhenIdDoesNotExist()
+        {
+            int nonExistentId = 999;
+
+            _mockEmployeeRepo.Setup(x => x.GetByIdAsync(nonExistentId))
+                .ReturnsAsync((Employee)null);
+
+            //Act
+
+            var result = await _sut.GetByIdAsync(nonExistentId);
+
+            //ASSERT 
+            result.Should().NotBeNull();
+
+        }
+
+        [Fact]
+        public async Task DeleteAsync_ShouldReturnSuccess_WhenIdExists()
+        {
+            //Arrange
+            int testId = 5;
+
+            var employeeToDelete = new Employee { Id = testId, FirstName = "Silinecek", LastName = "Kisi" };
+
+            _mockEmployeeRepo.Setup(x => x.GetByIdAsync(testId))
+                .ReturnsAsync(employeeToDelete);
+
+
+            //Act
+            var result = await _sut.DeleteAsync(testId);
+
+            //Assert
+            result.IsSuccessful.Should().BeTrue();
+            result.StatusCode.Should().Be(204);
+
+            //Remove metodu cagrıldımı 
+            _mockEmployeeRepo.Verify(x => x.Remove(employeeToDelete), Times.Once);
+
+            _mockUow.Verify(x => x.CommitAsync(), Times.Once);
+
+            _mockSignalR.Verify(x => x.RefreshDashboardAsync(), Times.Once);
+
+        }
 
        
+
 
     }
 }
