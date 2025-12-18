@@ -1,0 +1,46 @@
+services:
+  # 1. Veritabanı Servisi (PostgreSQL)
+  stajyer_db:
+    image: postgres:latest
+    container_name: stajyer_db
+    environment:
+      POSTGRES_USER: stajyer_user
+      POSTGRES_PASSWORD: stajyer_password
+      POSTGRES_DB: StajyerDb
+    ports:
+      - "5432:5432"
+    volumes:
+      - stajyer_pg_data:/var/lib/postgresql/data
+    restart: always
+
+  # 2. Backend API Servisi (.NET 8.0)
+  stajyer_api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: stajyer_api
+    depends_on:
+      - stajyer_db
+    ports:
+      - "5000:8080"
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Development
+      # Host kısmında veritabanı servis adı (stajyer_db) kullanılmalıdır
+      - ConnectionStrings__DefaultConnection=Host=stajyer_db;Database=StajyerDb;Username=stajyer_user;Password=stajyer_password
+    restart: on-failure
+
+  # 3. Frontend Servisi (Nginx - Vanilla JS)
+  stajyer_ui:
+    build:
+      # Masaüstündeki frontend klasörünün tam yolu
+      context: C:/Users/Eren/OneDrive/Masaüstü/StajyerFrontend
+      dockerfile: Dockerfile
+    container_name: stajyer_ui
+    ports:
+      - "8080:80"
+    depends_on:
+      - stajyer_api
+    restart: always
+
+volumes:
+  stajyer_pg_data:
