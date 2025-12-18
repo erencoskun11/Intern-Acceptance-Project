@@ -58,7 +58,62 @@ namespace Stajyer_Projesi.Tests.Systems.Controllers
             badRequest.StatusCode.Should().Be(400);
         }
 
+        [Fact]
+        public async Task GetById_ShouldReturnOk_WhenEmployeeExists()
+        {
+            // Arrange
+            int testId = 1;
+            var employeeDto = new EmployeeListDto { Id = testId, FirstName = "Ali" };
+            // Servis başarılı (Success) dönerse:
+            var response = Response<EmployeeListDto>.Success(employeeDto, 200);
 
+            _mockService.Setup(x => x.GetByIdAsync(testId)).ReturnsAsync(response);
+
+            // Act
+            var result = await _controller.GetById(testId);
+
+            // Assert
+            // Controller "OkObjectResult" (200) dönmeli
+            var objectResult = result as ObjectResult;
+            objectResult.Should().NotBeNull();
+            objectResult.StatusCode.Should().Be(200);
+        }
+
+        [Fact]
+        public async Task GetById_ShouldReturnNotFound_WhenServiceReturnsFail()
+        {
+            // Arrange
+            int testId = 99;
+            // Servis başarısız (Fail - 404) dönerse:
+            var response = Response<EmployeeListDto>.Fail("Bulunamadı", 404, true);
+
+            _mockService.Setup(x => x.GetByIdAsync(testId)).ReturnsAsync(response);
+
+            // Act
+            var result = await _controller.GetById(testId);
+
+            // Assert
+            var objectResult = result as ObjectResult;
+            objectResult.StatusCode.Should().Be(404);
+        }
+
+        [Fact]
+        public async Task Create_ShouldReturnCreated_WhenValid()
+        {
+            // Arrange
+            var createDto = new EmployeeCreateDto { FirstName = "Test" };
+            // Servis başarılı (201 Created) dönerse:
+            var response = Response<int>.Success(1, 201);
+
+            _mockService.Setup(x => x.CreateAsync(createDto)).ReturnsAsync(response);
+
+            // Act
+            var result = await _controller.Create(createDto);
+
+            // Assert
+            var objectResult = result as ObjectResult;
+            objectResult.StatusCode.Should().Be(201);
+        }
 
     }
 }
