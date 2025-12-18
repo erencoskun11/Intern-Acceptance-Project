@@ -1,0 +1,18 @@
+# Build Folders
+bin/
+obj/
+
+# VS stuff
+.vs/
+*.user
+*.suo
+
+# Database / local files
+*.db
+*.log
+
+# Rider / JetBrains
+.idea/
+
+# NUGET
+*.nupkg
