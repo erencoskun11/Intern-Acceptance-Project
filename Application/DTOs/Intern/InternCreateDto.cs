@@ -15,7 +15,7 @@ namespace Application.DTOs.Intern
         public int WorkDaysPerWeek { get; set; }
         public DateTime StartDate { get; set; } = DateTime.UtcNow;
         public DateTime EndDate { get; set; } = DateTime.UtcNow.AddMonths(1);
-
+        public int DepartmentId { get; set; }
         public int UniversityId { get; set; }
     }
 }
