@@ -1,4 +1,5 @@
-﻿using Domain.Entities;
+﻿using Application.DTOs.Intern;
+using Domain.Entities;
 using System.Threading.Tasks;
 
 namespace Application.Interfaces
@@ -6,5 +7,7 @@ namespace Application.Interfaces
     public interface IInternRepository : IGenericRepository<Intern>
     {
         IQueryable<Intern> GetAllWithDetails();
+        Task<Intern> GetByEmailAsync(string email);
+        Task<InternResultDto> CreateWithValidationAsync(InternCreateDto dto);
     }
 }
