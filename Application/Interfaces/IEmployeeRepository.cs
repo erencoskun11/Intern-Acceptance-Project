@@ -6,7 +6,7 @@ namespace Application.Interfaces
     public interface IEmployeeRepository : IGenericRepository<Employee>
     {
         Task<Employee?> GetByEmailAsync(string email);
-        Task<IEnumerable<Employee>> GetByDepartmentIdAsync(int departmentId);
+        IQueryable<Employee> GetByDepartmentId(int departmentId);
     }
 }
 
