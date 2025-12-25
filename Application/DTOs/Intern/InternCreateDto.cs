@@ -17,5 +17,7 @@ namespace Application.DTOs.Intern
         public DateTime EndDate { get; set; } = DateTime.UtcNow.AddMonths(1);
         public int DepartmentId { get; set; }
         public int UniversityId { get; set; }
+
+        public string? Password { get; set; } // Kullanıcının giriş şifresi
     }
 }
