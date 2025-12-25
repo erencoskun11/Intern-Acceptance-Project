@@ -10,6 +10,7 @@ namespace Application.Services.Interfaces
         // Hata Çözümü: Dönüş tipleri Task<Response<...>> olmalı
         Task<Response<IEnumerable<MaintenanceListDto>>> GetByInventoryItemIdAsync(int itemId);
 
+        Task<Response<NoContent>> CompleteMaintenanceAsync(int maintenanceId);
         Task<Response<IEnumerable<MaintenanceListDto>>> GetAllWithDetailsAsync();
     }
 }
