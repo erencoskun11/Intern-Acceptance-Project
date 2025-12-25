@@ -1,181 +1,215 @@
-﻿using Application.DTOs.Assignment;
+﻿using Application.Common;
+using Application.DTOs.Assignment;
 using Application.DTOs.Maintenance;
-using Application.Interfaces;
+using Application.Interfaces; 
 using Application.Services.Interfaces;
+using AutoMapper;
 using Domain.Entities;
 using Domain.Enums;
-using AutoMapper;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading.Tasks;
-// Kendi Exception sınıfların yoksa System.Exception kullanabilirsin
-using Application.Exceptions;
+using Microsoft.EntityFrameworkCore;
 
 namespace Application.Services
 {
-    public class AssignmentService : IAssignmentService
+    public class AssignmentService : GenericService<Assignment, AssignmentListDto, AssignmentCreateDto, AssignmentUpdateDto>, IAssignmentService
     {
-        private readonly IAssignmentRepository _assignmentRepository;
-        private readonly IGenericRepository<InventoryItem> _inventoryItemRepository;
-        private readonly IGenericRepository<Maintenance> _maintenanceRepository;
-        private readonly IMapper _mapper;
+        private readonly ISignalRService _signalRService;
+        private readonly IEmailService _emailService; 
 
         public AssignmentService(
-            IAssignmentRepository assignmentRepository,
-            IGenericRepository<InventoryItem> inventoryItemRepository,
-            IGenericRepository<Maintenance> maintenanceRepository,
-            IMapper mapper)
+            IUnitOfWork uow,
+            IMapper mapper,
+            ISignalRService signalRService,
+            IEmailService emailService) 
+            : base(uow.Assignments, mapper, uow)
         {
-            _assignmentRepository = assignmentRepository;
-            _inventoryItemRepository = inventoryItemRepository;
-            _maintenanceRepository = maintenanceRepository;
-            _mapper = mapper;
+            _signalRService = signalRService;
+            _emailService = emailService;
         }
 
-        // --- 1. ZİMMET OLUŞTURMA (Assign) ---
-        public async Task<int> AssignAsync(AssignmentCreateDto dto)
+        public override async Task<Response<int>> CreateAsync(AssignmentCreateDto dto)
         {
-            // Validasyon: Sadece bir kişi seçilmeli
-            if ((dto.InternId.HasValue && dto.EmployeeId.HasValue) ||
-                (!dto.InternId.HasValue && !dto.EmployeeId.HasValue))
-            {
-                throw new ArgumentException("Zimmet işlemi için sadece bir kişi (Stajyer veya Personel) seçilmelidir.");
-            }
-
-            // Ürün Kontrolü
-            var item = await _inventoryItemRepository.GetByIdAsync(dto.InventoryItemId);
-            if (item == null)
-                throw new KeyNotFoundException("Seçilen ürün bulunamadı.");
+            var item = await _uow.InventoryItems.GetByIdAsync(dto.InventoryItemId);
+            if (item == null) return Response<int>.Fail("Seçilen ürün bulunamadı.", 404, true);
 
             if (item.Status != ItemStatus.Available)
-                throw new InvalidOperationException($"Bu ürün zimmetlenemez. Şu anki durumu: {item.Status}");
+                return Response<int>.Fail($"Bu ürün zimmetlenemez. Durum: {item.Status}", 400, true);
 
-            // KATEGORİ KONTROLÜ (Aynı kategoriden 2 ürün verilemez)
-            var activeAssignments = await _assignmentRepository.GetActiveAssignmentsByPersonAsync(dto.InternId, dto.EmployeeId);
 
-            bool hasSameCategory = activeAssignments.Any(a => a.InventoryItem.Category == item.Category);
-            if (hasSameCategory)
+            var activeAssignments = await _uow.Assignments.GetActiveAssignmentsByPerson(dto.InternId, dto.EmployeeId).ToListAsync();
+            if (activeAssignments.Any(a => a.InventoryItem.Category == item.Category))
             {
-                throw new InvalidOperationException($"Bu kişiye zaten '{item.Category}' kategorisinde bir ürün zimmetlenmiş.");
+                return Response<int>.Fail($"Bu kişiye zaten '{item.Category}' kategorisinde bir ürün zimmetlenmiş.", 400, true);
             }
 
-            // Kayıt İşlemi
+            // 3. Zimmet Kaydı
             var assignment = _mapper.Map<Assignment>(dto);
-            await _assignmentRepository.AddAsync(assignment);
+            await _uow.Assignments.AddAsync(assignment);
 
-            // Ürün Durumunu Güncelle
+            // 4. Ürün Durumu Güncelleme
             item.Status = ItemStatus.Assigned;
-            await _inventoryItemRepository.UpdateAsync(item);
+            _uow.InventoryItems.Update(item);
 
-            // UnitOfWork yapısı yoksa manuel SaveChanges gerekebilir
-            // await _assignmentRepository.SaveChangesAsync(); 
+            await _uow.CommitAsync();
 
-            return assignment.Id;
+            // --- SIGNALR TETİKLEMELERİ ---
+            await _signalRService.SendNotificationAsync("Yeni bir zimmet yapıldı!", "success");
+            await _signalRService.RefreshEntityListAsync("Assignment");
+            await _signalRService.RefreshEntityListAsync("Inventory");
+            await _signalRService.RefreshDashboardAsync();
+
+            // --- MAİL GÖNDERME İŞLEMİ (YENİ) ---
+            // Mail işlemi başarısız olsa bile zimmet kaydı bozulmasın diye ayrı bir task olarak veya try-catch içinde çalıştırılabilir.
+            // Burada 'await' ile bekletiyoruz ki mail gittiğinden emin olalım.
+            try
+            {
+                await SendAssignmentEmail(dto, item);
+            }
+            catch (Exception ex)
+            {
+                // Mail hatası olursa logla ama işlemi durdurma
+                Console.WriteLine($"Mail Gönderilemedi: {ex.Message}");
+            }
+
+            return Response<int>.Success(assignment.Id, 201);
         }
 
-        // --- 2. İADE (Return) ---
-        public async Task ReturnAsync(AssignmentReturnDto dto)
+        // --- YARDIMCI MAİL METODU ---
+        private async Task SendAssignmentEmail(AssignmentCreateDto dto, InventoryItem item)
         {
-            // Include ile ürünü de çekiyoruz ki durumunu güncelleyelim
-            var assignment = await _assignmentRepository.GetByIdAsync(dto.AssignmentId, a => a.InventoryItem);
+            string toEmail = null;
+            string recipientName = null;
 
-            if (assignment == null)
-                throw new KeyNotFoundException("Zimmet kaydı bulunamadı.");
+            // Kime zimmetlendiğini bul
+            if (dto.EmployeeId.HasValue)
+            {
+                var employee = await _uow.Employees.GetByIdAsync(dto.EmployeeId.Value);
+                if (employee != null)
+                {
+                    toEmail = employee.Email;
+                    recipientName = $"{employee.FirstName} {employee.LastName}";
+                }
+            }
+            else if (dto.InternId.HasValue)
+            {
+                var intern = await _uow.Interns.GetByIdAsync(dto.InternId.Value);
+                if (intern != null)
+                {
+                    toEmail = intern.Email;
+                    recipientName = $"{intern.FirstName} {intern.LastName}";
+                }
+            }
+
+            // Eğer mail adresi varsa gönder
+            if (!string.IsNullOrEmpty(toEmail))
+            {
+                string subject = "📦 Yeni Zimmet Bilgilendirmesi";
+                string body = $@"
+                    <div style='font-family: Arial, sans-serif; padding: 20px; border: 1px solid #ddd; border-radius: 5px;'>
+                        <h2 style='color: #2c3e50;'>Sayın {recipientName},</h2>
+                        <p>Adınıza yeni bir envanter zimmetlenmiştir. Detaylar aşağıdadır:</p>
+                        
+                        <table style='width: 100%; border-collapse: collapse; margin-top: 10px;'>
+                            <tr style='background-color: #f2f2f2;'>
+                                <td style='padding: 10px; border: 1px solid #ddd;'><b>Ürün Kodu</b></td>
+                                <td style='padding: 10px; border: 1px solid #ddd;'>{item.ItemCode}</td>
+                            </tr>
+                            <tr>
+                                <td style='padding: 10px; border: 1px solid #ddd;'><b>Kategori</b></td>
+                                <td style='padding: 10px; border: 1px solid #ddd;'>{item.Category}</td>
+                            </tr>
+                            <tr style='background-color: #f2f2f2;'>
+                                <td style='padding: 10px; border: 1px solid #ddd;'><b>Marka / Model</b></td>
+                                <td style='padding: 10px; border: 1px solid #ddd;'>{item.Brand} / {item.Model}</td>
+                            </tr>
+                            <tr>
+                                <td style='padding: 10px; border: 1px solid #ddd;'><b>Seri No</b></td>
+                                <td style='padding: 10px; border: 1px solid #ddd;'>{item.SerialNumber}</td>
+                            </tr>
+                        </table>
+
+                        <p style='margin-top: 20px;'>Zimmet tutanağını sistem üzerinden görüntüleyebilirsiniz.</p>
+                        <p style='color: #7f8c8d; font-size: 12px;'>Bu e-posta otomatik olarak gönderilmiştir.</p>
+                    </div>
+                ";
+
+                await _emailService.SendEmailAsync(toEmail, subject, body);
+            }
+        }
+
+        // --- DİĞER METOTLAR (DEĞİŞMEDİ) ---
+        public override async Task<Response<IEnumerable<AssignmentListDto>>> GetAllAsync()
+        {
+            var query = _uow.Assignments.GetAll(
+                a => a.InventoryItem,
+                a => a.Intern,
+                a => a.Employee
+            );
+            var list = await query.ToListAsync();
+            var dtos = _mapper.Map<IEnumerable<AssignmentListDto>>(list);
+            return Response<IEnumerable<AssignmentListDto>>.Success(dtos ?? new List<AssignmentListDto>(), 200);
+        }
+
+        public async Task<Response<NoContent>> ReturnAsync(AssignmentReturnDto dto)
+        {
+            var assignment = await _uow.Assignments.GetByIdAsync(dto.AssignmentId, a => a.InventoryItem);
+            if (assignment == null) return Response<NoContent>.Fail("Zimmet kaydı bulunamadı.", 404, true);
 
             if (assignment.ActualReturnAt.HasValue)
-                throw new InvalidOperationException("Bu ürün zaten iade edilmiş.");
+                return Response<NoContent>.Fail("Bu ürün zaten iade edilmiş.", 400, true);
 
-            // İade Tarihini İşle
             assignment.ActualReturnAt = dto.ActualReturnAt ?? DateTime.UtcNow;
-            await _assignmentRepository.UpdateAsync(assignment);
+            _uow.Assignments.Update(assignment);
 
-            // Ürün Durumunu Müsait Yap
             if (assignment.InventoryItem != null)
             {
                 assignment.InventoryItem.Status = ItemStatus.Available;
-                await _inventoryItemRepository.UpdateAsync(assignment.InventoryItem);
+                _uow.InventoryItems.Update(assignment.InventoryItem);
             }
+
+            await _uow.CommitAsync();
+
+            await _signalRService.SendNotificationAsync("Ürün iade alındı.", "info");
+            await _signalRService.RefreshEntityListAsync("Assignment");
+            await _signalRService.RefreshEntityListAsync("Inventory");
+            await _signalRService.RefreshDashboardAsync();
+
+            return Response<NoContent>.Success(204);
         }
 
-        // --- 3. UPDATE (Düzeltme) ---
-        public async Task UpdateAsync(int id, AssignmentUpdateDto dto)
+        public async Task<Response<int>> CreateMaintenanceAsync(MaintenanceCreateDto dto)
         {
-            var entity = await _assignmentRepository.GetByIdAsync(id);
-            if (entity == null)
-                throw new KeyNotFoundException("Zimmet kaydı bulunamadı.");
+            var item = await _uow.InventoryItems.GetByIdAsync(dto.InventoryItemId);
+            if (item == null) return Response<int>.Fail("Ürün bulunamadı.", 404, true);
 
-            // Notları veya tarihleri güncelle
-            entity.Notes = dto.Notes;
-            if (dto.ActualReturnAt.HasValue) entity.ActualReturnAt = dto.ActualReturnAt;
-            // Diğer alanlar (InventoryItemId vs.) genelde update edilmez, edilirse logic karışır.
-
-            await _assignmentRepository.UpdateAsync(entity);
-        }
-
-        // --- 4. DELETE (Silme) ---
-        public async Task DeleteAsync(int id)
-        {
-            var entity = await _assignmentRepository.GetByIdAsync(id);
-            if (entity == null)
-                throw new KeyNotFoundException("Zimmet kaydı bulunamadı.");
-
-            // Kural: İade edilmemiş (Aktif) zimmet silinemez
-            if (entity.ActualReturnAt == null)
-                throw new InvalidOperationException("Aktif bir zimmet kaydı silinemez. Önce iade almalısınız.");
-
-            await _assignmentRepository.DeleteAsync(id);
-        }
-
-        // --- GET METOTLARI ---
-        public async Task<IEnumerable<AssignmentListDto>> GetAllAsync()
-        {
-            var list = await _assignmentRepository.GetAllAsync(a => a.InventoryItem, a => a.Intern, a => a.Employee);
-            return _mapper.Map<IEnumerable<AssignmentListDto>>(list);
-        }
-
-        public async Task<AssignmentListDto?> GetByIdAsync(int id)
-        {
-            var entity = await _assignmentRepository.GetByIdAsync(id, a => a.InventoryItem, a => a.Intern, a => a.Employee);
-            return _mapper.Map<AssignmentListDto>(entity);
-        }
-
-        public async Task<IEnumerable<AssignmentListDto>> GetByEmployeeIdAsync(int employeeId)
-        {
-            // Repository'de bu metot yoksa GetAllAsync içinde Where ile yapabilirsin
-            // Şimdilik Repository'de varmış gibi varsayıyorum
-            // Yoksa: _assignmentRepository.GetAllAsync(a => a.EmployeeId == employeeId, ...)
-
-            var list = await _assignmentRepository.GetByEmployeeIdAsync(employeeId);
-            return _mapper.Map<IEnumerable<AssignmentListDto>>(list);
-        }
-
-        public async Task<IEnumerable<AssignmentListDto>> GetByInternIdAsync(int internId)
-        {
-            // Repository isimlendirmesi StudentId kalmış olabilir, kontrol et
-            var list = await _assignmentRepository.GetByStudentIdAsync(internId);
-            return _mapper.Map<IEnumerable<AssignmentListDto>>(list);
-        }
-
-        // --- BAKIM OLUŞTURMA (Opsiyonel - MaintenanceService varken burada olması şart değil) ---
-        public async Task<int> CreateMaintenanceAsync(MaintenanceCreateDto dto)
-        {
-            var item = await _inventoryItemRepository.GetByIdAsync(dto.InventoryItemId);
-            if (item == null) throw new KeyNotFoundException("Ürün bulunamadı.");
-
-            if (item.Status == ItemStatus.Assigned)
-                throw new InvalidOperationException("Ürün şu an zimmetli. Önce iade almalısınız.");
-
-            if (item.Status == ItemStatus.Maintenance)
-                throw new InvalidOperationException("Ürün zaten bakımda.");
+            if (item.Status == ItemStatus.Assigned) return Response<int>.Fail("Ürün şu an zimmetli.", 400, true);
+            if (item.Status == ItemStatus.Maintenance) return Response<int>.Fail("Ürün zaten bakımda.", 400, true);
 
             var maintenance = _mapper.Map<Maintenance>(dto);
-            await _maintenanceRepository.AddAsync(maintenance);
+            await _uow.Maintenances.AddAsync(maintenance);
 
             item.Status = ItemStatus.Maintenance;
-            await _inventoryItemRepository.UpdateAsync(item);
+            _uow.InventoryItems.Update(item);
 
-            return maintenance.Id;
+            await _uow.CommitAsync();
+
+            await _signalRService.RefreshEntityListAsync("Inventory");
+            await _signalRService.RefreshEntityListAsync("Maintenance");
+
+            return Response<int>.Success(maintenance.Id, 201);
+        }
+
+        public async Task<Response<IEnumerable<AssignmentListDto>>> GetByEmployeeIdAsync(int employeeId)
+        {
+            var list = await _uow.Assignments.GetByEmployeeId(employeeId).ToListAsync();
+            var dtos = _mapper.Map<IEnumerable<AssignmentListDto>>(list);
+            return Response<IEnumerable<AssignmentListDto>>.Success(dtos, 200);
+        }
+
+        public async Task<Response<IEnumerable<AssignmentListDto>>> GetByInternIdAsync(int internId)
+        {
+            var list = await _uow.Assignments.GetByInternId(internId).ToListAsync();
+            var dtos = _mapper.Map<IEnumerable<AssignmentListDto>>(list);
+            return Response<IEnumerable<AssignmentListDto>>.Success(dtos, 200);
         }
     }
 }
