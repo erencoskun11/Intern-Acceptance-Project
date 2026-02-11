@@ -8,7 +8,7 @@ namespace Application.Services.Interfaces
 {
     public interface IAuthService
     {
-        Task<Response<string>> LoginAsync(LoginDto loginDto);
+        Task<Response<LoginResponseDto>> LoginAsync(LoginDto loginDto);
         Task<Response<NoContent>> DeleteUserAsync(int id);
         Task<Response<AppUser>> GetMeAsync(string userName);
 
