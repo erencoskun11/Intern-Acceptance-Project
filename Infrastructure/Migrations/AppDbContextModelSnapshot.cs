@@ -22,6 +22,98 @@ namespace Infrastructure.Migrations
 
             NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
 
+            modelBuilder.Entity("Domain.Entities.AppUser", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("Email")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<bool>("IsDeleted")
+                        .HasColumnType("boolean");
+
+                    b.Property<DateTime?>("LastLoginAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("PasswordHash")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("Role")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("UserName")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("AppUsers");
+                });
+
+            modelBuilder.Entity("Domain.Entities.Assignment", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<DateTime?>("ActualReturnAt")
+                        .HasColumnType("timestamptz");
+
+                    b.Property<DateTime>("AssignedAt")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("timestamp with time zone")
+                        .HasDefaultValueSql("now() at time zone 'utc'");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<int?>("EmployeeId")
+                        .HasColumnType("integer");
+
+                    b.Property<int?>("InternId")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("InventoryItemId")
+                        .HasColumnType("integer");
+
+                    b.Property<bool>("IsDeleted")
+                        .HasColumnType("boolean");
+
+                    b.Property<string>("Notes")
+                        .HasColumnType("text");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("EmployeeId");
+
+                    b.HasIndex("InternId");
+
+                    b.HasIndex("InventoryItemId");
+
+                    b.ToTable("Assignments", null, t =>
+                        {
+                            t.HasCheckConstraint("CK_Assignments_Assignee", "(\"InternId\" IS NOT NULL AND \"EmployeeId\" IS NULL) OR (\"InternId\" IS NULL AND \"EmployeeId\" IS NOT NULL)");
+                        });
+                });
+
             modelBuilder.Entity("Domain.Entities.Department", b =>
                 {
                     b.Property<int>("Id")
@@ -30,10 +122,19 @@ namespace Infrastructure.Migrations
 
                     NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
 
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<bool>("IsDeleted")
+                        .HasColumnType("boolean");
+
                     b.Property<string>("Name")
                         .IsRequired()
                         .HasMaxLength(100)
                         .HasColumnType("character varying(100)");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
 
                     b.HasKey("Id");
 
@@ -46,31 +147,41 @@ namespace Infrastructure.Migrations
                         new
                         {
                             Id = 1,
+                            CreatedAt = new DateTime(1, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified),
+                            IsDeleted = false,
                             Name = "Frontend"
                         },
                         new
                         {
                             Id = 2,
+                            CreatedAt = new DateTime(1, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified),
+                            IsDeleted = false,
                             Name = "Backend"
                         },
                         new
                         {
                             Id = 3,
+                            CreatedAt = new DateTime(1, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified),
+                            IsDeleted = false,
                             Name = "Mobile"
                         },
                         new
                         {
                             Id = 4,
+                            CreatedAt = new DateTime(1, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified),
+                            IsDeleted = false,
                             Name = "Database"
                         },
                         new
                         {
                             Id = 5,
+                            CreatedAt = new DateTime(1, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified),
+                            IsDeleted = false,
                             Name = "Fullstack"
                         });
                 });
 
-            modelBuilder.Entity("Domain.Entities.InternshipApplication", b =>
+            modelBuilder.Entity("Domain.Entities.Employee", b =>
                 {
                     b.Property<int>("Id")
                         .ValueGeneratedOnAdd()
@@ -78,138 +189,61 @@ namespace Infrastructure.Migrations
 
                     NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
 
-                    b.Property<DateTime>("CreatedAt")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("timestamp with time zone")
-                        .HasDefaultValueSql("now() at time zone 'utc'");
-
-                    b.Property<int>("DepartmentId")
+                    b.Property<int?>("AppUserId")
                         .HasColumnType("integer");
 
-                    b.Property<DateTime>("EndDate")
+                    b.Property<DateTime>("CreatedAt")
                         .HasColumnType("timestamp with time zone");
 
-                    b.Property<bool>("IsMandatory")
-                        .HasColumnType("boolean");
-
-                    b.Property<bool>("IsVolunteer")
-                        .HasColumnType("boolean");
-
-                    b.Property<int?>("MentorId")
+                    b.Property<int?>("DepartmentId")
                         .HasColumnType("integer");
+
+                    b.Property<string>("Email")
+                        .IsRequired()
+                        .HasMaxLength(150)
+                        .HasColumnType("character varying(150)");
+
+                    b.Property<DateTime?>("EndDate")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("FirstName")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<bool>("IsDeleted")
+                        .HasColumnType("boolean");
+
+                    b.Property<string>("LastName")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<string>("Phone")
+                        .IsRequired()
+                        .HasColumnType("text");
 
                     b.Property<string>("Role")
                         .IsRequired()
-                        .HasMaxLength(50)
-                        .HasColumnType("character varying(50)");
-
-                    b.Property<byte[]>("RowVersion")
-                        .IsConcurrencyToken()
-                        .ValueGeneratedOnAddOrUpdate()
-                        .HasColumnType("bytea");
+                        .HasColumnType("text");
 
                     b.Property<DateTime>("StartDate")
                         .HasColumnType("timestamp with time zone");
 
-                    b.Property<int>("StudentId")
-                        .HasColumnType("integer");
-
-                    b.Property<decimal>("TaskSuccessPercent")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("numeric(5,2)")
-                        .HasDefaultValue(0m);
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("DepartmentId");
-
-                    b.HasIndex("MentorId");
-
-                    b.HasIndex("StudentId");
-
-                    b.HasIndex("StudentId", "Role");
-
-                    b.ToTable("InternshipApplications", null, t =>
-                        {
-                            t.HasCheckConstraint("CK_InternshipApplications_TaskSuccessRange", "\"TaskSuccessPercent\" >= 0 AND \"TaskSuccessPercent\" <= 100");
-                        });
-                });
-
-            modelBuilder.Entity("Domain.Entities.InternshipTask", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("integer");
-
-                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
-
-                    b.Property<DateTime>("AssignedAt")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("timestamp with time zone")
-                        .HasDefaultValueSql("now() at time zone 'utc'");
-
-                    b.Property<DateTime?>("CompletedAt")
+                    b.Property<DateTime?>("UpdatedAt")
                         .HasColumnType("timestamp with time zone");
 
-                    b.Property<string>("Description")
-                        .HasMaxLength(2000)
-                        .HasColumnType("character varying(2000)");
-
-                    b.Property<int>("InternshipApplicationId")
-                        .HasColumnType("integer");
-
-                    b.Property<decimal>("SuccessPercent")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("numeric(5,2)")
-                        .HasDefaultValue(0m);
-
-                    b.Property<string>("Title")
-                        .IsRequired()
-                        .HasMaxLength(250)
-                        .HasColumnType("character varying(250)");
-
                     b.HasKey("Id");
 
-                    b.HasIndex("InternshipApplicationId");
-
-                    b.ToTable("InternshipTasks", null, t =>
-                        {
-                            t.HasCheckConstraint("CK_InternshipTasks_SuccessRange", "\"SuccessPercent\" >= 0 AND \"SuccessPercent\" <= 100");
-                        });
-                });
-
-            modelBuilder.Entity("Domain.Entities.Mentor", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("integer");
-
-                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
-
-                    b.Property<int>("DepartmentId")
-                        .HasColumnType("integer");
-
-                    b.Property<string>("Email")
-                        .HasMaxLength(200)
-                        .HasColumnType("character varying(200)");
-
-                    b.Property<string>("FullName")
-                        .IsRequired()
-                        .HasMaxLength(200)
-                        .HasColumnType("character varying(200)");
-
-                    b.Property<string>("Position")
-                        .HasMaxLength(150)
-                        .HasColumnType("character varying(150)");
-
-                    b.HasKey("Id");
+                    b.HasIndex("AppUserId")
+                        .IsUnique();
 
                     b.HasIndex("DepartmentId");
 
-                    b.ToTable("Mentors", (string)null);
+                    b.ToTable("Employess", (string)null);
                 });
 
-            modelBuilder.Entity("Domain.Entities.Student", b =>
+            modelBuilder.Entity("Domain.Entities.Intern", b =>
                 {
                     b.Property<int>("Id")
                         .ValueGeneratedOnAdd()
@@ -220,10 +254,40 @@ namespace Infrastructure.Migrations
                     b.Property<int>("ClassYear")
                         .HasColumnType("integer");
 
-                    b.Property<string>("FullName")
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<int>("Degree")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("Email")
                         .IsRequired()
-                        .HasMaxLength(250)
-                        .HasColumnType("character varying(250)");
+                        .HasMaxLength(150)
+                        .HasColumnType("character varying(150)");
+
+                    b.Property<DateTime>("EndDate")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("FirstName")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<bool>("IsDeleted")
+                        .HasColumnType("boolean");
+
+                    b.Property<string>("LastName")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<string>("Phone")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)");
+
+                    b.Property<DateTime>("StartDate")
+                        .HasColumnType("timestamp with time zone");
 
                     b.Property<string>("StudentNumber")
                         .HasMaxLength(50)
@@ -232,11 +296,131 @@ namespace Infrastructure.Migrations
                     b.Property<int>("UniversityId")
                         .HasColumnType("integer");
 
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<int>("WorkDaysPerWeek")
+                        .HasColumnType("integer");
+
                     b.HasKey("Id");
 
                     b.HasIndex("UniversityId");
 
-                    b.ToTable("Students", (string)null);
+                    b.ToTable("Interns", (string)null);
+                });
+
+            modelBuilder.Entity("Domain.Entities.InventoryItem", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("Brand")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<string>("Category")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<bool>("IsDeleted")
+                        .HasColumnType("boolean");
+
+                    b.Property<string>("ItemCode")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<string>("Model")
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<string>("Notes")
+                        .HasMaxLength(2000)
+                        .HasColumnType("character varying(2000)");
+
+                    b.Property<DateTime?>("PurchaseDate")
+                        .HasColumnType("timestamptz");
+
+                    b.Property<byte[]>("RowVersion")
+                        .IsConcurrencyToken()
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("bytea");
+
+                    b.Property<string>("SerialNumber")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)")
+                        .HasDefaultValue("Available");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTime?>("WarrantyEndDate")
+                        .HasColumnType("timestamptz");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ItemCode")
+                        .IsUnique();
+
+                    b.ToTable("InventoryItems", (string)null);
+                });
+
+            modelBuilder.Entity("Domain.Entities.Maintenance", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<decimal?>("Cost")
+                        .HasColumnType("numeric");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("Description")
+                        .HasMaxLength(2000)
+                        .HasColumnType("character varying(2000)");
+
+                    b.Property<int>("InventoryItemId")
+                        .HasColumnType("integer");
+
+                    b.Property<bool>("IsDeleted")
+                        .HasColumnType("boolean");
+
+                    b.Property<string>("PerformedBy")
+                        .HasColumnType("text");
+
+                    b.Property<DateTime?>("RepairedAt")
+                        .HasColumnType("timestamptz");
+
+                    b.Property<DateTime>("ReportedAt")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("timestamp with time zone")
+                        .HasDefaultValueSql("now() at time zone 'utc'");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("InventoryItemId");
+
+                    b.ToTable("Maintenances", (string)null);
                 });
 
             modelBuilder.Entity("Domain.Entities.University", b =>
@@ -247,13 +431,14 @@ namespace Infrastructure.Migrations
 
                     NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
 
-                    b.Property<string>("Country")
-                        .HasMaxLength(100)
-                        .HasColumnType("character varying(100)");
+                    b.Property<string>("City")
+                        .HasColumnType("text");
 
-                    b.Property<string>("CreatedBy")
-                        .HasMaxLength(100)
-                        .HasColumnType("character varying(100)");
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<bool>("IsDeleted")
+                        .HasColumnType("boolean");
 
                     b.Property<string>("Name")
                         .IsRequired()
@@ -271,60 +456,54 @@ namespace Infrastructure.Migrations
                         new
                         {
                             Id = 1,
-                            Country = "Turkey",
+                            CreatedAt = new DateTime(1, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified),
+                            IsDeleted = false,
                             Name = "Example University"
                         });
                 });
 
-            modelBuilder.Entity("Domain.Entities.InternshipApplication", b =>
+            modelBuilder.Entity("Domain.Entities.Assignment", b =>
                 {
-                    b.HasOne("Domain.Entities.Department", "Department")
-                        .WithMany("Applications")
-                        .HasForeignKey("DepartmentId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-
-                    b.HasOne("Domain.Entities.Mentor", "Mentor")
-                        .WithMany("AssignedApplications")
-                        .HasForeignKey("MentorId")
+                    b.HasOne("Domain.Entities.Employee", "Employee")
+                        .WithMany("Assignments")
+                        .HasForeignKey("EmployeeId")
                         .OnDelete(DeleteBehavior.SetNull);
 
-                    b.HasOne("Domain.Entities.Student", "Student")
-                        .WithMany("Applications")
-                        .HasForeignKey("StudentId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
+                    b.HasOne("Domain.Entities.Intern", "Intern")
+                        .WithMany("Assignments")
+                        .HasForeignKey("InternId")
+                        .OnDelete(DeleteBehavior.Restrict);
 
-                    b.Navigation("Department");
-
-                    b.Navigation("Mentor");
-
-                    b.Navigation("Student");
-                });
-
-            modelBuilder.Entity("Domain.Entities.InternshipTask", b =>
-                {
-                    b.HasOne("Domain.Entities.InternshipApplication", "InternshipApplication")
-                        .WithMany("Tasks")
-                        .HasForeignKey("InternshipApplicationId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("InternshipApplication");
-                });
-
-            modelBuilder.Entity("Domain.Entities.Mentor", b =>
-                {
-                    b.HasOne("Domain.Entities.Department", "Department")
-                        .WithMany("Mentors")
-                        .HasForeignKey("DepartmentId")
+                    b.HasOne("Domain.Entities.InventoryItem", "InventoryItem")
+                        .WithMany("Assignments")
+                        .HasForeignKey("InventoryItemId")
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
+                    b.Navigation("Employee");
+
+                    b.Navigation("Intern");
+
+                    b.Navigation("InventoryItem");
+                });
+
+            modelBuilder.Entity("Domain.Entities.Employee", b =>
+                {
+                    b.HasOne("Domain.Entities.AppUser", "AppUser")
+                        .WithOne("Employee")
+                        .HasForeignKey("Domain.Entities.Employee", "AppUserId");
+
+                    b.HasOne("Domain.Entities.Department", "Department")
+                        .WithMany("Employees")
+                        .HasForeignKey("DepartmentId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.Navigation("AppUser");
+
                     b.Navigation("Department");
                 });
 
-            modelBuilder.Entity("Domain.Entities.Student", b =>
+            modelBuilder.Entity("Domain.Entities.Intern", b =>
                 {
                     b.HasOne("Domain.Entities.University", "University")
                         .WithMany("Students")
@@ -335,26 +514,42 @@ namespace Infrastructure.Migrations
                     b.Navigation("University");
                 });
 
+            modelBuilder.Entity("Domain.Entities.Maintenance", b =>
+                {
+                    b.HasOne("Domain.Entities.InventoryItem", "InventoryItem")
+                        .WithMany("Maintenances")
+                        .HasForeignKey("InventoryItemId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("InventoryItem");
+                });
+
+            modelBuilder.Entity("Domain.Entities.AppUser", b =>
+                {
+                    b.Navigation("Employee");
+                });
+
             modelBuilder.Entity("Domain.Entities.Department", b =>
                 {
-                    b.Navigation("Applications");
-
-                    b.Navigation("Mentors");
+                    b.Navigation("Employees");
                 });
 
-            modelBuilder.Entity("Domain.Entities.InternshipApplication", b =>
+            modelBuilder.Entity("Domain.Entities.Employee", b =>
                 {
-                    b.Navigation("Tasks");
+                    b.Navigation("Assignments");
                 });
 
-            modelBuilder.Entity("Domain.Entities.Mentor", b =>
+            modelBuilder.Entity("Domain.Entities.Intern", b =>
                 {
-                    b.Navigation("AssignedApplications");
+                    b.Navigation("Assignments");
                 });
 
-            modelBuilder.Entity("Domain.Entities.Student", b =>
+            modelBuilder.Entity("Domain.Entities.InventoryItem", b =>
                 {
-                    b.Navigation("Applications");
+                    b.Navigation("Assignments");
+
+                    b.Navigation("Maintenances");
                 });
 
             modelBuilder.Entity("Domain.Entities.University", b =>
