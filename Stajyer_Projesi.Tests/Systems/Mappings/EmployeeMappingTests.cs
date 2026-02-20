@@ -43,7 +43,22 @@ namespace Stajyer_Projesi.Tests.Systems.Mappings
 
         }
 
+        [Fact]
+        public void Should_Map_Employee_To_EmployeeListDto()
+        {
+            //Arrange
+            var employee = new Employee { Id = 1, FirstName = "John", LastName = "Doe", Email = "ali@test.com" };
 
+            //Act
+            var dto = _mapper.Map<EmployeeListDto>(employee);
+
+            //Assert
+            dto.FirstName.Should().Be("John");
+            dto.LastName.Should().Be("Doe");
+
+
+
+        }
 
 
 
