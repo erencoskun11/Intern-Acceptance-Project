@@ -1,12 +1,15 @@
-﻿using Application.DTOs.University;
+﻿using Application.Common;
+using Application.DTOs.University;
 using Application.Services.Interfaces;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using OfficeOpenXml;
 
 namespace API.Controllers
 {
-    [Route("api/[controller]")]
+    [Route("api/universities")]
     [ApiController]
-    public class UniversityController : ControllerBase
+    public class UniversityController : CustomBaseController
     {
         private readonly IUniversityService _service;
 
@@ -16,49 +19,112 @@ namespace API.Controllers
         }
 
         [HttpGet]
-        public async Task<ActionResult<IEnumerable<UniversityListDto>>> GetAll()
+        [Authorize(Roles = "Admin,User")]
+        public async Task<IActionResult> GetAll()
         {
-            var result = await _service.GetAllAsync();
-            return Ok(result);
+            // DÜZELTME: Response.Success KULLANMA. Servis zaten Response dönüyor.
+            return CreateActionResult(await _service.GetAllAsync());
         }
 
         [HttpGet("{id}")]
-        public async Task<ActionResult<UniversityListDto>> GetById(int id)
+        [Authorize(Roles = "Admin,User")]
+        public async Task<IActionResult> GetById(int id)
         {
-            var result = await _service.GetByIdAsync(id);
-            if (result == null) return NotFound();
-            return Ok(result);
+            return CreateActionResult(await _service.GetByIdAsync(id));
         }
-        [HttpPost("bulk")]
-        public async Task<ActionResult<bool>> BulkCreate([FromBody] IEnumerable<UniversityCreateDto> dtos)
-        {
-            if (dtos == null || !dtos.Any())
-                return BadRequest("At least one university is required.");
-
-            await _service.BulkCreateAsync(dtos);
-            return true;
-        }
-
 
         [HttpPost]
-        public async Task<ActionResult<bool>> Create(UniversityCreateDto dto)
+        [Authorize(Roles = "Admin")]
+        public async Task<IActionResult> Create(UniversityCreateDto dto)
         {
-            var id = await _service.CreateAsync(dto);
-            return id > 0;
+            return CreateActionResult(await _service.CreateAsync(dto));
+        }
+
+        [HttpPost("bulk")]
+        [Authorize(Roles = "Admin")]
+        public async Task<IActionResult> BulkCreate([FromBody] IEnumerable<UniversityCreateDto> dtos)
+        {
+            return CreateActionResult(await _service.BulkCreateAsync(dtos));
         }
 
         [HttpPut("{id}")]
-        public async Task<ActionResult<bool>> Update(int id, UniversityUpdateDto dto)
+        [Authorize(Roles = "Admin")]
+        public async Task<IActionResult> Update(int id, UniversityUpdateDto dto)
         {
-            await _service.UpdateAsync(id, dto);
-            return true;
+            return CreateActionResult(await _service.UpdateAsync(id, dto));
         }
 
         [HttpDelete("{id}")]
-        public async Task<ActionResult<bool>> Delete(int id)
+        [Authorize(Roles = "Admin")]
+        public async Task<IActionResult> Delete(int id)
         {
-            await _service.DeleteAsync(id);
-            return true;
+            return CreateActionResult(await _service.DeleteAsync(id));
         }
+
+
+        [HttpPost("upload")]
+        [Authorize(Roles = "Admin")]
+        public async Task<IActionResult> UploadExcel(IFormFile file)
+        {
+
+            if (file == null || file.Length == 0)
+                return CreateActionResult(Response<NoContent>.Fail("Dosya seçilmedi.", 400, true));
+
+            var dtos = new List<UniversityCreateDto>();
+
+            try
+            {
+                using (var stream = new MemoryStream())
+                {
+                    await file.CopyToAsync(stream);
+
+                    stream.Position = 0;
+
+                    using (var package = new ExcelPackage(stream))
+                    {
+                        var worksheet = package.Workbook.Worksheets[0];
+
+                        if (worksheet.Dimension == null)
+                            return CreateActionResult(Response<NoContent>.Fail("Excel dosyası boş.", 400, true));
+
+                        var rowCount = worksheet.Dimension.Rows;
+
+                        for (int row = 2; row <= rowCount; row++)
+                        {
+                            var uniName = worksheet.Cells[row, 1].Value?.ToString()?.Trim();
+
+                            if (!string.IsNullOrEmpty(uniName))
+                            {
+                                dtos.Add(new UniversityCreateDto { Name = uniName });
+                            }
+                        }
+                    }
+                }
+
+                if (dtos.Any())
+                {
+                    return CreateActionResult(await _service.BulkCreateAsync(dtos));
+                }
+
+                return CreateActionResult(Response<NoContent>.Fail("Excel içinde okunacak geçerli veri bulunamadı.", 400, true));
+            }
+            catch (Exception ex)
+            {
+                return CreateActionResult(Response<NoContent>.Fail($"Excel hatası: {ex.Message}", 500, true));
+            }
+        }
+
+
+
+
+
+
+
+
+
+
+
+
+
     }
 }
